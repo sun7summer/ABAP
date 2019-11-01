@@ -1,0 +1,69 @@
+*&---------------------------------------------------------------------*
+*&      Form  alv_display
+*&---------------------------------------------------------------------*
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_CALLBACK_PROGRAM       = SY-REPID
+      I_CALLBACK_PF_STATUS_SET = 'ALV_SUMMARY_PF'
+      I_CALLBACK_USER_COMMAND  = 'ALV_SUM_USER_COMMAND'
+      IS_LAYOUT                = WA_LAYOUT
+      IT_FIELDCAT              = GT_FIELDCAT[]
+      I_SAVE                   = 'A'
+    TABLES
+      T_OUTTAB                 = GT_SUMMARY
+    EXCEPTIONS
+      PROGRAM_ERROR            = 1
+      OTHERS                   = 2.
+*&---------------------------------------------------------------------*
+*&      Form  alv_pf_status
+*&---------------------------------------------------------------------*
+FORM ALV_SUMMARY_PF USING RT_EXTAB TYPE SLIS_T_EXTAB.
+* Copy from Program - SAPLKKBL 之 STANDARD_FULLSCREEN 並移除 SAVE 按鈕
+  SET PF-STATUS 'SUMMARY'.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  alv_user_command
+*&---------------------------------------------------------------------*
+FORM ALV_SUM_USER_COMMAND USING R_UCOMM     LIKE SY-UCOMM
+                                 RS_SELFIELD TYPE SLIS_SELFIELD.
+
+  DATA:L_IDX  LIKE SY-TABIX.
+
+  BREAK SAPABAP.
+
+  CASE R_UCOMM.
+    WHEN '&IC1'."Double Click for row
+*--- Hotspot selektion
+    READ TABLE GT_SUMMARY INDEX RS_SELFIELD-TABINDEX.
+    CASE RS_SELFIELD-FIELDNAME.
+      WHEN 'BLART'.
+       DELETE GT_DISDETAIL WHERE BLART NE GT_SUMMARY-BLART.
+      WHEN 'TYPE_ID'.
+       DELETE GT_DISDETAIL WHERE BLART NE GT_SUMMARY-BLART.
+       DELETE GT_DISDETAIL WHERE TYPE_ID NE GT_SUMMARY-TYPE_ID.
+      WHEN OTHERS.
+        IF P_BLART = 'X'.
+         DELETE GT_DISDETAIL WHERE BLART NE GT_SUMMARY-BLART.
+        ELSE.
+         DELETE GT_DISDETAIL WHERE BLART NE GT_SUMMARY-BLART.
+         DELETE GT_DISDETAIL WHERE TYPE_ID NE GT_SUMMARY-TYPE_ID.
+        ENDIF.
+    ENDCASE.
+      PERFORM DISP_DETAIL.
+      IF EXIT_FG = 'X'.
+        LEAVE TO SCREEN 0.
+      ENDIF.
+    WHEN 'DISP'."顯示全部明細
+      PERFORM DISP_DETAIL.
+      IF EXIT_FG = 'X'.
+        LEAVE TO SCREEN 0.
+      ENDIF.
+    WHEN 'BACK' OR 'EXIT' OR 'CANC'.
+      EXIT_FG = 'X'.
+      LEAVE TO SCREEN 0.
+    ENDCASE.
+* Auto refresh flag -- Important
+      RS_SELFIELD-REFRESH = 'X'.
+      GT_DISDETAIL[] = GT_DETAIL[].
+
+ENDFORM.
